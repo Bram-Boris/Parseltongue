@@ -1,6 +1,7 @@
 #include <iostream>
 #include <unicode/ucnv.h>
 #include <fstream>
+#include <bitset>
 
 namespace su {
     enum class byte_order {
@@ -11,6 +12,14 @@ namespace su {
         const unsigned short val { *reinterpret_cast<const unsigned short *>("az") };
         return val == 0x617AU ? byte_order::big_endian : byte_order::little_endian;
     }
+}
+
+void print_binary_char(char& c) {
+    int i;
+    for (i = 0; i < 8; i++) {
+        printf("%d", !!((c << i) & 0x80));
+    }
+    printf("\n");
 }
 
 bool utf8_check_is_valid(const std::string& string)
@@ -62,18 +71,21 @@ int main() {
         uint32_t fmt_length;
         stream.read(reinterpret_cast<char*>(&fmt_length), sizeof(fmt_length));
 
-        stream.seekg(36);
-
-        char* data_start_text = new char[5];
-        data_start_text[4] = '\0';
-        stream.read(data_start_text, sizeof(char) * 4);
+        stream.seekg(20);
+        uint16_t encoding_tag;
+        stream.read(reinterpret_cast<char*>(&encoding_tag), sizeof(encoding_tag));
 
         stream.seekg(22);
         uint16_t channels;
         stream.read(reinterpret_cast<char*>(&channels), sizeof(channels));
 
-        uint32_t sample_data_size;
-        stream.read(reinterpret_cast<char*>(&sample_data_size), sizeof(sample_data_size));
+        stream.seekg(24);
+        uint32_t sample_rate;
+        stream.read(reinterpret_cast<char*>(&sample_rate), sizeof(sample_rate));
+
+        stream.seekg(28);
+        uint32_t byte_rate;
+        stream.read(reinterpret_cast<char*>(&byte_rate), sizeof(byte_rate));
 
         stream.seekg(32);
         uint16_t block_align;
@@ -83,33 +95,68 @@ int main() {
         uint16_t bits_per_sample;
         stream.read(reinterpret_cast<char*>(&bits_per_sample), sizeof(bits_per_sample));
 
+        stream.seekg(36);
+        char* data_start_text = new char[5];
+        data_start_text[4] = '\0';
+        stream.read(data_start_text, sizeof(char) * 4);
+
+        stream.seekg(40);
+        uint32_t sample_data_size;
+        stream.read(reinterpret_cast<char*>(&sample_data_size), sizeof(sample_data_size));
 
         int data_offset = 44;
         int sample_size = channels * bits_per_sample / 8;
-        std::string collected_chars {};
-        for(int sample_offset = 0; sample_offset < sample_data_size; sample_offset += sample_size) {
+        std::bitset<1000> collected_bits {};
+        //std::cout << ((0b0001 >> 0) & 1) << std::endl;
+        int tries = 0;
+        int bits_added = 0;
+        char f = 'Z' | 1;
+        print_binary_char(f);
+        char z = 'Z';
+        print_binary_char(z);
+        for(uint32_t sample_offset = 0; sample_offset < sample_data_size; sample_offset += sample_size) {
             stream.seekg(data_offset + sample_offset);
-            char c = stream.peek();
-            collected_chars.push_back(c);
-            if(c == '\0') {
+            char byte = stream.peek();
+            collected_bits >>= 1;
+            bool bit = (byte >> 0) & 1;
+            collected_bits.set(999, bit);
+            //collected_chars |= (bool)((byte >> 0) & 1);
+            //std::cout << ((collected_chars[999] | collected_chars[998]) == 0) << std::endl;
+            ++bits_added;
+            if(bits_added >= 8 && bits_added % 8 == 0 && (collected_bits[992] | collected_bits[999] | collected_bits[998] | collected_bits[997] | collected_bits[996] | collected_bits[995]
+                | collected_bits[994] | collected_bits[993]) == 0) {
                 //UErrorCode status = U_ZERO_ERROR;
                 //UConverter* const cnv = ucnv_open("utf-8", &status);
                 //assert(U_SUCCESS(status));
                 //int targetLimit = 2 * str.size();
                 //UChar *target = new UChar[targetLimit];
                 //ucnv_toUChars(cnv, target, targetLimit, collected_chars.c_str(), -1, &status);
+                int bytes_added = bits_added / 8;
+                char* buffer = new char[1000];
+                for (int byte_i = 0; byte_i < bytes_added; byte_i++) {
+                    int bits_byte_index = 991 - byte_i * 8;
+                    char& c = buffer[byte_i];
+                    for (int y = 0; y < 8; y++) {
+                        c |= collected_bits[bits_byte_index + y];
+                        c <<= 1;
+                    }
+                }
+                std::string str { buffer };
 
-                if (utf8_check_is_valid(collected_chars)) {
-                    std::cout << collected_chars << std::endl;
-                    std::cout << "-------------------------------------" << std::endl;
-                    collected_chars.clear();
+                if (utf8_check_is_valid(str)) {
+                    std::cout << str << "\n";
+                    std::cout << "-------------------------------------\n";
+                    bits_added = 0;
+                    collected_bits.reset();
                 }
                 else {
                     //std::cout << "Found a null byte, but it wasn't valid UTF-*. :O" << std::endl;
-                    collected_chars.clear();
+                    bits_added = 0;
+                    collected_bits.reset();
                 }
             }
         }
+        std::cout << std::flush;
 
         std::cout << "offset: 0 - " << riff << std::endl;
         std::cout << "offset: 4 - " << file_length << std::endl;
@@ -117,10 +164,10 @@ int main() {
 
         std::cout << "offset: 12 - " << fmt_start_text << std::endl;
         std::cout << "offset: 16 - " << fmt_length << std::endl;
-        //std::cout << "offset: 20 - " << encoding_tag << std::endl;
+        std::cout << "offset: 20 - " << encoding_tag << std::endl;
         std::cout << "offset: 22 - " << channels << std::endl;
-        //std::cout << "offset: 24 - " << sample_rate << std::endl;
-        //std::cout << "offset: 28 - " << bytes_per_second << std::endl;
+        std::cout << "offset: 24 - " << sample_rate << std::endl;
+        std::cout << "offset: 28 - " << byte_rate << std::endl;
         std::cout << "offset: 32 - " << block_align << std::endl;
         std::cout << "offset: 34 - " << bits_per_sample << std::endl;
 
