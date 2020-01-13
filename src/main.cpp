@@ -75,6 +75,10 @@ int main() {
         uint32_t sample_data_size;
         stream.read(reinterpret_cast<char*>(&sample_data_size), sizeof(sample_data_size));
 
+        stream.seekg(32);
+        uint16_t block_align;
+        stream.read(reinterpret_cast<char*>(&block_align), sizeof(block_align));
+
         stream.seekg(34);
         uint16_t bits_per_sample;
         stream.read(reinterpret_cast<char*>(&bits_per_sample), sizeof(bits_per_sample));
@@ -85,8 +89,7 @@ int main() {
         std::string collected_chars {};
         for(int sample_offset = 0; sample_offset < sample_data_size; sample_offset += sample_size) {
             stream.seekg(data_offset + sample_offset);
-            char c;
-            stream.read(&c, sizeof(c));
+            char c = stream.peek();
             collected_chars.push_back(c);
             if(c == '\0') {
                 //UErrorCode status = U_ZERO_ERROR;
@@ -118,7 +121,7 @@ int main() {
         std::cout << "offset: 22 - " << channels << std::endl;
         //std::cout << "offset: 24 - " << sample_rate << std::endl;
         //std::cout << "offset: 28 - " << bytes_per_second << std::endl;
-        //std::cout << "offset: 32 - " << block_align << std::endl;
+        std::cout << "offset: 32 - " << block_align << std::endl;
         std::cout << "offset: 34 - " << bits_per_sample << std::endl;
 
         std::cout << "offset: 36 - " << data_start_text << std::endl;
