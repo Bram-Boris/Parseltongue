@@ -5,9 +5,9 @@
 #include <getopt.h>
 #include <dlfcn.h>
 #include <filesystem>
+#include <functional>
 
 #include "parseltongue/file_format.hpp"
-#include "parseltongue/wave.hpp"
 
 namespace su {
     enum class byte_order {
@@ -25,6 +25,7 @@ static struct option long_options[] =
     {"file", required_argument, nullptr, 'f'},
     {"read", no_argument, nullptr, 'r'},
     {"write", required_argument, nullptr, 'w'},
+    {"help", no_argument, nullptr, 'h'}
 };
 
 enum class mode {
@@ -38,7 +39,7 @@ std::pair<std::string, std::pair<mode, std::optional<std::string>>> process_inpu
     std::optional<std::string> wm = std::nullopt;
     while(true)
     {
-        const auto opt = getopt_long(argc, argv, "f:rw:", long_options, nullptr);
+        const auto opt = getopt_long(argc, argv, "f:rw:h", long_options, nullptr);
         if(opt == -1)
             break;
 
@@ -66,6 +67,9 @@ std::pair<std::string, std::pair<mode, std::optional<std::string>>> process_inpu
                     std::cerr << "You need to supply a secret when writing" << std::endl;
                     exit(1);
                 }
+            case 'h':
+                std::cout << "There is no help! Go figure it out." << std::endl;
+                exit(1);
                break;
         }
     }
@@ -82,30 +86,58 @@ int main(int argc, char** argv) {
     std::cout << "Your processor has a " << (su::cur_byte_order() == su::byte_order::little_endian ? "little" : "big") << " endian architecture\n";
 
     std::vector<std::string> plugin_paths;
-    for(auto& p : std::filesystem::directory_iterator("./plugins")) {
-        if (p.path().extension() == plugin_ext)
+    for(auto& p : std::filesystem::recursive_directory_iterator("./plugins")) {
+        if (p.path().extension() == plugin_ext) {
             plugin_paths.push_back(p.path().string());
+            std::cout << "Found plugin " << plugin_paths.back() << std::endl;
+        }
     }
 
     std::vector<void*> plugins;
     for (auto& p : plugin_paths) {
         void* handle = dlopen(p.c_str(), RTLD_LAZY);
-        char *errstr = dlerror();
-        if (errstr)
+        const char* error = dlerror();
+        if (!error) {
             plugins.push_back(handle);
+            std::cout << "Succesfully loaded plugin " << p << std::endl;
+        }
         else
-            std::cout << "A dynamic linking error occurred: " << errstr << std::endl;
+            std::cout << "A dynamic linking error occurred: " << error << std::endl;
     }
 
-    auto [file_path, mode_with_text] = process_input(argc, argv);
-    auto [mode, write_text] = mode_with_text;
-    // TODO: match extension to possible file types
-    Wave w { file_path };
-    if (mode == mode::READ) {
-        w.print_header();
-        w.read_parseltongue();
-    } else if (mode == mode::WRITE) {
-        std::cerr << "WWEE DOOO NOTTTT SUUOOPOPPORT THIS YET!" << std::endl;
+    {
+        auto [file_path, mode_with_text] = process_input(argc, argv);
+        auto [mode, write_text] = mode_with_text;
+        // TODO: match extension to possible file types
+        std::filesystem::path file = std::filesystem::path(file_path);
+        std::string file_ext = file.extension();
+        std::cout << file_ext << std::endl;
+
+        std::optional<std::unique_ptr<FileFormat>> ff_opt = std::nullopt;
+
+        for (auto& p : plugins) {
+            auto get_ext_fn_ptr = (std::vector<std::string>(*)())dlsym(p, "get_file_extensions");
+            auto create_file_format_fn_ptr = (std::unique_ptr<FileFormat>(*)(std::string))dlsym(p, "create_file_format");
+            for (auto& ext : get_ext_fn_ptr()) {
+                if (ext == file_ext) {
+                    ff_opt = create_file_format_fn_ptr(file.string());
+                }
+            }
+        }
+
+        if(!ff_opt) {
+            std::cerr << "This extension is not implemented!" << std::endl;
+            std::cerr << "You might need a plugin for this. Go ask Crabbe and Goyle." << std::endl;
+            exit(1);
+        }
+        std::unique_ptr<FileFormat> ff = std::move(*ff_opt);
+
+        if (mode == mode::READ) {
+            ff->print_header();
+            ff->read_parseltongue();
+        } else if (mode == mode::WRITE) {
+            std::cerr << "WWEE DOOO NOTTTT SUUOOPOPPORT THIS YET!" << std::endl;
+        }
     }
 
     for (auto& p : plugins) {

@@ -1,30 +1,24 @@
-file(GLOB_RECURSE files RELATIVE ${CMAKE_CURRENT_LIST_DIR} *.c[p]*)
-
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
-## Compiler options
-# Make the compiler complain, a lot
-# Force colors when using ninja with clang
-if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    add_compile_options(-fcolor-diagnostics)
-elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    add_compile_options(-fdiagnostics-color=always)
-endif()
-# Turn on the address sanitizer for safety checks
-option(SANITIZER "Turn on the address sanitizer" OFF)
-if(SANITIZER)
-    add_compile_options(-fsanitize=address -fno-omit-frame-pointer -O1)
-    add_link_options(-fsanitize=address)
-endif()
-add_compile_options(-Wall -Wextra -pedantic)
-
 add_executable(Parseltongue
-    ${files}
+    main.cpp
 )
-target_include_directories(Parseltongue PUBLIC ../include)
+
+## Compiler options
+# Turn on the address sanitizer for safety checks
+option(PARSELTONGUE_SANITIZER "Turn on the address sanitizer" OFF)
+if(PARSELTONGUE_SANITIZER)
+    target_compile_options(Parseltongue
+        PRIVATE -fsanitize=address -fno-omit-frame-pointer)
+    target_link_options(Parseltongue
+        PRIVATE -fsanitize=address)
+endif()
+# Make the compiler complain, a lot
+target_compile_options(Parseltongue
+    PRIVATE -Wall -Wextra -pedantic -Werror)
 target_compile_features(Parseltongue PUBLIC cxx_std_17)
 
-target_link_options(Parseltongue PRIVATE -ldl)
+target_link_libraries(Parseltongue PRIVATE ParseltongueLib)
 
 add_custom_command(TARGET Parseltongue PRE_BUILD
                    COMMAND ${CMAKE_COMMAND} -E copy_directory

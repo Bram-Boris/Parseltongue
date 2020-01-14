@@ -18,9 +18,8 @@ public:
             throw FileCouldNotBeOpened(file_path);
         }
     }
+    virtual ~FileFormat() = default;
 
-    virtual std::vector<std::string> get_file_extensions() const = 0;
-    virtual std::string get_file_format_name() const = 0;
     virtual void print_header() const = 0;
     virtual void speak_parseltongue(std::string) = 0;
     virtual std::vector<std::string> read_parseltongue() = 0;

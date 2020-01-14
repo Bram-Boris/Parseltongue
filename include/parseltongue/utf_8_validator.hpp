@@ -3,8 +3,9 @@
 
 #include <string>
 
-namespace utf8 {
-bool validate(const std::string& string)
+class utf8 {
+public:
+static bool validate(const std::string& string)
 {
     int c,i,ix,n,j;
     for (i=0, ix=string.length(); i < ix; i++)
@@ -26,6 +27,6 @@ bool validate(const std::string& string)
     }
     return true;
 }
-}
+};
 
 #endif // FILE_UTF_8_VALIDATOR_HPP
