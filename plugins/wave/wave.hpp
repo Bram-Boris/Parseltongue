@@ -16,7 +16,7 @@ public:
     std::vector<std::string> read_parseltongue() override {
         // Data starts at 44.
         int data_offset = 44;
-        int sample_size = header_channels * header_bits_per_sample / 8;
+        int sample_size = header_bits_per_sample / 8;
         bool* buffer = new bool[100000];
         char* chars = new char[100000];
         int tries = 0;
@@ -98,4 +98,4 @@ private:
     uint32_t header_data_length;
 };
 
-#endif // FILE_WAVE_HPP#ifndef FILE_WAVE_HPP
+#endif // FILE_WAVE_HPP
