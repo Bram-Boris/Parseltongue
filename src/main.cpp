@@ -2,6 +2,12 @@
 #include <unicode/ucnv.h>
 #include <fstream>
 #include <bitset>
+#include <getopt.h>
+#include <dlfcn.h>
+#include <filesystem>
+
+#include "parseltongue/file_format.hpp"
+#include "parseltongue/wave.hpp"
 
 namespace su {
     enum class byte_order {
@@ -14,169 +20,95 @@ namespace su {
     }
 }
 
-void print_binary_char(char& c) {
-    int i;
-    for (i = 0; i < 8; i++) {
-        printf("%d", !!((c << i) & 0x80));
-    }
-    printf("\n");
-}
-
-bool utf8_check_is_valid(const std::string& string)
+static struct option long_options[] = 
 {
-    int c,i,ix,n,j;
-    for (i=0, ix=string.length(); i < ix; i++)
+    {"file", required_argument, nullptr, 'f'},
+    {"read", no_argument, nullptr, 'r'},
+    {"write", required_argument, nullptr, 'w'},
+};
+
+enum class mode {
+    READ,
+    WRITE
+};
+
+std::pair<std::string, std::pair<mode, std::optional<std::string>>> process_input(int argc, char** argv) {
+    std::optional<mode> m = std::nullopt;
+    std::optional<std::string> f = std::nullopt;
+    std::optional<std::string> wm = std::nullopt;
+    while(true)
     {
-        c = (unsigned char) string[i];
-        //if (c==0x09 || c==0x0a || c==0x0d || (0x20 <= c && c <= 0x7e) ) n = 0; // is_printable_ascii
-        if (0x00 <= c && c <= 0x7f) n=0; // 0bbbbbbb
-        else if ((c & 0xE0) == 0xC0) n=1; // 110bbbbb
-        else if ( c==0xed && i<(ix-1) && ((unsigned char)string[i+1] & 0xa0)==0xa0) return false; //U+d800 to U+dfff
-        else if ((c & 0xF0) == 0xE0) n=2; // 1110bbbb
-        else if ((c & 0xF8) == 0xF0) n=3; // 11110bbb
-        //else if (($c & 0xFC) == 0xF8) n=4; // 111110bb //byte 5, unnecessary in 4 byte UTF-8
-        //else if (($c & 0xFE) == 0xFC) n=5; // 1111110b //byte 6, unnecessary in 4 byte UTF-8
-        else return false;
-        for (j=0; j<n && i<ix; j++) { // n bytes matching 10bbbbbb follow ?
-            if ((++i == ix) || (( (unsigned char)string[i] & 0xC0) != 0x80))
-                return false;
-        }
-    }
-    return true;
-}
+        const auto opt = getopt_long(argc, argv, "f:rw:", long_options, nullptr);
+        if(opt == -1)
+            break;
 
-int main() {
-    std::cout << "Your processor has a " << (su::cur_byte_order() == su::byte_order::little_endian ? "little" : "big") << " endian architecture\n";
-
-    std::string filename = "data/lounge1.wav";
-    std::ifstream stream(filename, std::ios::binary);
-    if (!stream.is_open()) {
-        std::cout << "couldnt find file or something like that" << std::endl;
-    } else {
-        char* riff = new char[5];
-        riff[4] = '\0';
-        stream.read(riff, sizeof(char) * 4);
-
-        int32_t file_length;
-        stream.read(reinterpret_cast<char*>(&file_length), sizeof file_length);
-
-        char* wave = new char[5];
-        wave[4] = '\0';
-        stream.read(wave, sizeof(char) * 4);
-
-        char* fmt_start_text = new char[5];
-        fmt_start_text[4] = '\0';
-        stream.read(fmt_start_text, sizeof(char) * 4);
-
-        uint32_t fmt_length;
-        stream.read(reinterpret_cast<char*>(&fmt_length), sizeof(fmt_length));
-
-        stream.seekg(20);
-        uint16_t encoding_tag;
-        stream.read(reinterpret_cast<char*>(&encoding_tag), sizeof(encoding_tag));
-
-        stream.seekg(22);
-        uint16_t channels;
-        stream.read(reinterpret_cast<char*>(&channels), sizeof(channels));
-
-        stream.seekg(24);
-        uint32_t sample_rate;
-        stream.read(reinterpret_cast<char*>(&sample_rate), sizeof(sample_rate));
-
-        stream.seekg(28);
-        uint32_t byte_rate;
-        stream.read(reinterpret_cast<char*>(&byte_rate), sizeof(byte_rate));
-
-        stream.seekg(32);
-        uint16_t block_align;
-        stream.read(reinterpret_cast<char*>(&block_align), sizeof(block_align));
-
-        stream.seekg(34);
-        uint16_t bits_per_sample;
-        stream.read(reinterpret_cast<char*>(&bits_per_sample), sizeof(bits_per_sample));
-
-        stream.seekg(36);
-        char* data_start_text = new char[5];
-        data_start_text[4] = '\0';
-        stream.read(data_start_text, sizeof(char) * 4);
-
-        stream.seekg(40);
-        uint32_t sample_data_size;
-        stream.read(reinterpret_cast<char*>(&sample_data_size), sizeof(sample_data_size));
-
-        int data_offset = 44;
-        int sample_size = channels * bits_per_sample / 8;
-        std::bitset<1000> collected_bits {};
-        //std::cout << ((0b0001 >> 0) & 1) << std::endl;
-        int tries = 0;
-        int bits_added = 0;
-        char f = 'Z' | 1;
-        print_binary_char(f);
-        char z = 'Z';
-        print_binary_char(z);
-        for(uint32_t sample_offset = 0; sample_offset < sample_data_size; sample_offset += sample_size) {
-            stream.seekg(data_offset + sample_offset);
-            char byte = stream.peek();
-            collected_bits >>= 1;
-            bool bit = (byte >> 0) & 1;
-            collected_bits.set(999, bit);
-            //collected_chars |= (bool)((byte >> 0) & 1);
-            //std::cout << ((collected_chars[999] | collected_chars[998]) == 0) << std::endl;
-            ++bits_added;
-            if(bits_added >= 8 && bits_added % 8 == 0 && (collected_bits[992] | collected_bits[999] | collected_bits[998] | collected_bits[997] | collected_bits[996] | collected_bits[995]
-                | collected_bits[994] | collected_bits[993]) == 0) {
-                //UErrorCode status = U_ZERO_ERROR;
-                //UConverter* const cnv = ucnv_open("utf-8", &status);
-                //assert(U_SUCCESS(status));
-                //int targetLimit = 2 * str.size();
-                //UChar *target = new UChar[targetLimit];
-                //ucnv_toUChars(cnv, target, targetLimit, collected_chars.c_str(), -1, &status);
-                int bytes_added = bits_added / 8;
-                char* buffer = new char[1000];
-                for (int byte_i = 0; byte_i < bytes_added; byte_i++) {
-                    int bits_byte_index = 991 - byte_i * 8;
-                    char& c = buffer[byte_i];
-                    for (int y = 0; y < 8; y++) {
-                        c |= collected_bits[bits_byte_index + y];
-                        c <<= 1;
-                    }
+        switch (opt) {
+            case 'f':
+                if(optarg) {
+                    std::cout << "Opening file: " << optarg << std::endl;
+                    f = std::string(optarg);
+                } else {
+                    std::cerr << "You need to supply a file name" << std::endl;
+                    exit(1);
                 }
-                std::string str { buffer };
-
-                if (utf8_check_is_valid(str)) {
-                    std::cout << str << "\n";
-                    std::cout << "-------------------------------------\n";
-                    bits_added = 0;
-                    collected_bits.reset();
+                break;
+            case 'r':
+                std::cout << "Reading secrets from file" << std::endl;
+                m = mode::READ;
+                break;
+            case 'w':
+                if(optarg) {
+                    std::cout << "Writing secrets to file: " << optarg << std::endl;
+                    m = mode::WRITE;
+                    wm = std::string(optarg);
                 }
                 else {
-                    //std::cout << "Found a null byte, but it wasn't valid UTF-*. :O" << std::endl;
-                    bits_added = 0;
-                    collected_bits.reset();
+                    std::cerr << "You need to supply a secret when writing" << std::endl;
+                    exit(1);
                 }
-            }
+               break;
         }
-        std::cout << std::flush;
+    }
+    if (!m || !f) {
+        std::cerr  << "You need to supply a file and a mode" << std::endl;
+        exit(1);
+    }
+    return std::make_pair(*f, std::make_pair(*m, wm));
+}
 
-        std::cout << "offset: 0 - " << riff << std::endl;
-        std::cout << "offset: 4 - " << file_length << std::endl;
-        std::cout << "offset: 8 - " << wave << std::endl;
+const char* plugin_ext = ".so";
 
-        std::cout << "offset: 12 - " << fmt_start_text << std::endl;
-        std::cout << "offset: 16 - " << fmt_length << std::endl;
-        std::cout << "offset: 20 - " << encoding_tag << std::endl;
-        std::cout << "offset: 22 - " << channels << std::endl;
-        std::cout << "offset: 24 - " << sample_rate << std::endl;
-        std::cout << "offset: 28 - " << byte_rate << std::endl;
-        std::cout << "offset: 32 - " << block_align << std::endl;
-        std::cout << "offset: 34 - " << bits_per_sample << std::endl;
+int main(int argc, char** argv) {
+    std::cout << "Your processor has a " << (su::cur_byte_order() == su::byte_order::little_endian ? "little" : "big") << " endian architecture\n";
 
-        std::cout << "offset: 36 - " << data_start_text << std::endl;
-        std::cout << "offset: 40 - " << sample_data_size << std::endl;
-
-        delete[] riff;
-        delete[] wave;
+    std::vector<std::string> plugin_paths;
+    for(auto& p : std::filesystem::directory_iterator("./plugins")) {
+        if (p.path().extension() == plugin_ext)
+            plugin_paths.push_back(p.path().string());
     }
 
-    stream.close();
+    std::vector<void*> plugins;
+    for (auto& p : plugin_paths) {
+        void* handle = dlopen(p.c_str(), RTLD_LAZY);
+        char *errstr = dlerror();
+        if (errstr)
+            plugins.push_back(handle);
+        else
+            std::cout << "A dynamic linking error occurred: " << errstr << std::endl;
+    }
+
+    auto [file_path, mode_with_text] = process_input(argc, argv);
+    auto [mode, write_text] = mode_with_text;
+    // TODO: match extension to possible file types
+    Wave w { file_path };
+    if (mode == mode::READ) {
+        w.print_header();
+        w.read_parseltongue();
+    } else if (mode == mode::WRITE) {
+        std::cerr << "WWEE DOOO NOTTTT SUUOOPOPPORT THIS YET!" << std::endl;
+    }
+
+    for (auto& p : plugins) {
+        dlclose(p);
+    }
 }

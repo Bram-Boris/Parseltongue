@@ -24,6 +24,8 @@ add_executable(Parseltongue
 target_include_directories(Parseltongue PUBLIC ../include)
 target_compile_features(Parseltongue PUBLIC cxx_std_17)
 
+target_link_options(Parseltongue PRIVATE -ldl)
+
 add_custom_command(TARGET Parseltongue PRE_BUILD
                    COMMAND ${CMAKE_COMMAND} -E copy_directory
                        ${CMAKE_SOURCE_DIR}/data/ $<TARGET_FILE_DIR:Parseltongue>/data)
