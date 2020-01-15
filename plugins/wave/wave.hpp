@@ -15,9 +15,9 @@ public:
     }
     std::vector<std::string> read_parseltongue() override {
         std::vector<std::string> messages;
-        // Data starts at 44.
         const int data_offset = 44;
         const int sample_size = header_bits_per_sample / 8;
+        // Maybe move the 100000 to a const and enforce it in the inputs
         std::bitset<100000> buffer;
         std::string message;
         int bits_added = 0;
@@ -31,20 +31,17 @@ public:
                 for (int i = bits_added - 8, j = 7; i < bits_added; i++, j--) {
                     char_bits.set(j, buffer[i]);
                 }
-                message.push_back((char)char_bits.to_ulong());
-                if(message.back() == '\0') {
-                    if (utf8::validate(message) && !message.empty()) {
+                char c = static_cast<char>(char_bits.to_ulong());
+                if(c != '\0') {
+                    message.push_back(c);
+                } else {
+                    if (utf8::validate(message) && !message.empty())
                         messages.push_back(message);
-                        bits_added = 0;
-                        message = std::string {};
-                        // this really do anything, because we can just overwrite the bits
-                        //buffer.reset();
-                    }
-                    else {
-                        bits_added = 0;
-                        // this really do anything, because we can just overwrite the bits
-                        //buffer.reset();
-                    }
+
+                    bits_added = 0;
+                    message = std::string {};
+                    // this really do anything, because we can just overwrite the bits
+                    //buffer.reset();
                 }
             }
         }

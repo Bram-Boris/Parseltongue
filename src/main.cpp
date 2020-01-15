@@ -134,9 +134,11 @@ int main(int argc, char** argv) {
 
         if (mode == mode::READ) {
             ff->print_header();
-            for (auto& message : ff->read_parseltongue()) {
+            auto messages = ff->read_parseltongue();
+            std::cout << "Amount of messages found: " << messages.size() << std::endl;
+            for (auto& m : messages) {
                 std::cout << "A message has been found: " << std::endl;
-                std::cout << message << std::endl;
+                std::cout << m << std::endl;
             }
         } else if (mode == mode::WRITE) {
             std::cerr << "WWEE DOOO NOTTTT SUUOOPOPPORT THIS YET!" << std::endl;
