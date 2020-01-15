@@ -9,6 +9,7 @@
 
 #include "parseltongue/file_format.hpp"
 #include "parseltongue/mode.hpp"
+#include "parseltongue/plugin.hpp"
 
 namespace su {
     enum class byte_order {
@@ -90,16 +91,10 @@ int main(int argc, char** argv) {
         }
     }
 
-    std::vector<void*> plugins;
-    for (auto& p : plugin_paths) {
-        void* handle = dlopen(p.c_str(), RTLD_LAZY);
-        const char* error = dlerror();
-        if (!error) {
-            plugins.push_back(handle);
-            std::cout << "Succesfully loaded plugin " << p << std::endl;
-        }
-        else
-            std::cout << "A dynamic linking error occurred: " << error << std::endl;
+    std::vector<std::unique_ptr<Plugin>> plugins;
+    for (auto& p_path : plugin_paths) {
+        auto plugin = std::make_unique<Plugin>(p_path);
+        plugins.push_back(std::move(plugin));
     }
 
     {
@@ -114,11 +109,9 @@ int main(int argc, char** argv) {
 
         // TODO: exception handling
         for (auto& p : plugins) {
-            auto get_ext_fn_ptr = (std::vector<std::string>(*)())dlsym(p, "get_file_extensions");
-            auto create_file_format_fn_ptr = (std::unique_ptr<FileFormat>(*)(std::string))dlsym(p, "create_file_format");
-            for (auto& ext : get_ext_fn_ptr()) {
+            for (auto& ext : p->get_file_extensions()) {
                 if (ext == file_ext) {
-                    ff_opt = create_file_format_fn_ptr(file.string());
+                    ff_opt = p->create_file_format(file.string());
                 }
             }
         }
@@ -136,9 +129,5 @@ int main(int argc, char** argv) {
         } else if (mode == mode::WRITE) {
             ff->speak_parseltongue(*write_message);
         }
-    }
-
-    for (auto& p : plugins) {
-        dlclose(p);
     }
 }
