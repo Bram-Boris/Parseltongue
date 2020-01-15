@@ -23,7 +23,7 @@ public:
     virtual void print_header() const = 0;
     virtual void speak_parseltongue(std::string) = 0;
     virtual std::vector<std::string> read_parseltongue() = 0;
-public:
+protected:
     template<typename F>
     F read(std::optional<std::size_t> pos = std::nullopt) {
         F out {};
@@ -49,7 +49,7 @@ public:
             byte_stream.seekg(previous_pos);
         return out;
     }
-private:
+
     std::ifstream byte_stream;
 };
 

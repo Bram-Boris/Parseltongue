@@ -14,55 +14,41 @@ public:
     void speak_parseltongue(std::string) override {
     }
     std::vector<std::string> read_parseltongue() override {
+        std::vector<std::string> messages;
         // Data starts at 44.
-        int data_offset = 44;
-        int sample_size = header_bits_per_sample / 8;
-        bool* buffer = new bool[100000];
-        char* chars = new char[100000];
-        int tries = 0;
+        const int data_offset = 44;
+        const int sample_size = header_bits_per_sample / 8;
+        std::bitset<100000> buffer;
+        std::string message;
         int bits_added = 0;
         for(uint32_t sample_offset = 0; sample_offset < header_data_length; sample_offset += sample_size) {
-            char sample_byte = read<char>(data_offset + sample_offset);
-            //std::cout << data_offset + sample_offset << std::endl;
-            //print_helper::print_binary_char(sample_byte);
-            bool bit = (sample_byte >> 0) & 1;
-            //std::cout << bit << std::endl;
+            const char sample_byte = read<char>(data_offset + sample_offset);
+            const bool bit = (sample_byte >> 0) & 1;
             buffer[bits_added] = bit;
             ++bits_added;
             if(bits_added >= 8 && bits_added % 8 == 0) {
-                //std::cout << first_byte << std::endl;
-                //std::cout << buffer << std::endl;
-                std::bitset<8> bs;
-                //std::cout << bits_added << std::endl;
+                std::bitset<8> char_bits;
                 for (int i = bits_added - 8, j = 7; i < bits_added; i++, j--) {
-                    bs.set(j, buffer[i]);
+                    char_bits.set(j, buffer[i]);
                 }
-                chars[bits_added / 8 - 1] = (char)bs.to_ulong();
-                //std::cout << "byte found" << std::endl;
-                //print_helper::print_binary_char(chars[bits_added / 8 - 1]);
-                //print_helper::print_binary_char(*first_byte);
-
-                if(chars[bits_added / 8 - 1] == '\0') {
-                    //std::string str { reinterpret_cast<char*>(buffer) };
-                    std::string str { chars };
-                    // Also check if the str isn't only a NULL byte
-                    if (utf8::validate(str) && !str.empty()) {
-                        std::cout << str << '\n';
-                        std::cout << "-------------------------------------\n";
+                message.push_back((char)char_bits.to_ulong());
+                if(message.back() == '\0') {
+                    if (utf8::validate(message) && !message.empty()) {
+                        messages.push_back(message);
                         bits_added = 0;
-                        buffer = new bool[100000];
-                        chars = new char[100000];
-                        break;
+                        message = std::string {};
+                        // this really do anything, because we can just overwrite the bits
+                        //buffer.reset();
                     }
                     else {
                         bits_added = 0;
-                        buffer = new bool[10000];
-                        chars = new char[100000];
+                        // this really do anything, because we can just overwrite the bits
+                        //buffer.reset();
                     }
                 }
             }
         }
-        return std::vector<std::string>();
+        return messages;
     }
 
     void print_header() const override {

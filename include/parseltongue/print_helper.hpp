@@ -1,16 +1,15 @@
 #ifndef FILE_PRINT_HELPER_HPP
 #define FILE_PRINT_HELPER_HPP
 
-#include <cstdio>
+#include <iostream>
+#include <bitset>
 
 class print_helper {
 public:
-static void print_binary_char(char& c) {
-    int i;
-    for (i = 0; i < 8; i++) {
-        printf("%d", !!((c << i) & 0x80));
-    }
-    printf("\n");
+template<typename T>
+static void print_binary(T& x) {
+    std::bitset<sizeof(T) * 8> b { x };
+    std::cout << b << std::endl;
 }
 };
 
