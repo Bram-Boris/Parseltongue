@@ -20,6 +20,7 @@ target_compile_features(Parseltongue PUBLIC cxx_std_17)
 
 target_link_libraries(Parseltongue PRIVATE ParseltongueLib)
 
-add_custom_command(TARGET Parseltongue PRE_BUILD
+add_custom_target(Parseltongue_Data ALL
                    COMMAND ${CMAKE_COMMAND} -E copy_directory
                        ${CMAKE_SOURCE_DIR}/data/ $<TARGET_FILE_DIR:Parseltongue>/data)
+

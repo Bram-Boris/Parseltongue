@@ -8,6 +8,7 @@
 #include <functional>
 
 #include "parseltongue/file_format.hpp"
+#include "parseltongue/mode.hpp"
 
 namespace su {
     enum class byte_order {
@@ -26,11 +27,6 @@ static struct option long_options[] =
     {"read", no_argument, nullptr, 'r'},
     {"write", required_argument, nullptr, 'w'},
     {"help", no_argument, nullptr, 'h'}
-};
-
-enum class mode {
-    READ,
-    WRITE
 };
 
 std::pair<std::string, std::pair<mode, std::optional<std::string>>> process_input(int argc, char** argv) {
@@ -67,6 +63,7 @@ std::pair<std::string, std::pair<mode, std::optional<std::string>>> process_inpu
                     std::cerr << "You need to supply a secret when writing" << std::endl;
                     exit(1);
                 }
+                break;
             case 'h':
                 std::cout << "There is no help! Go figure it out." << std::endl;
                 exit(1);
@@ -107,7 +104,7 @@ int main(int argc, char** argv) {
 
     {
         auto [file_path, mode_with_text] = process_input(argc, argv);
-        auto [mode, write_text] = mode_with_text;
+        auto [mode, write_message] = mode_with_text;
         // TODO: match extension to possible file types
         std::filesystem::path file = std::filesystem::path(file_path);
         std::string file_ext = file.extension();
@@ -115,6 +112,7 @@ int main(int argc, char** argv) {
 
         std::optional<std::unique_ptr<FileFormat>> ff_opt = std::nullopt;
 
+        // TODO: exception handling
         for (auto& p : plugins) {
             auto get_ext_fn_ptr = (std::vector<std::string>(*)())dlsym(p, "get_file_extensions");
             auto create_file_format_fn_ptr = (std::unique_ptr<FileFormat>(*)(std::string))dlsym(p, "create_file_format");
@@ -132,16 +130,11 @@ int main(int argc, char** argv) {
         }
         std::unique_ptr<FileFormat> ff = std::move(*ff_opt);
 
+        ff->print_header();
         if (mode == mode::READ) {
-            ff->print_header();
             auto messages = ff->read_parseltongue();
-            std::cout << "Amount of messages found: " << messages.size() << std::endl;
-            for (auto& m : messages) {
-                std::cout << "A message has been found: " << std::endl;
-                std::cout << m << std::endl;
-            }
         } else if (mode == mode::WRITE) {
-            std::cerr << "WWEE DOOO NOTTTT SUUOOPOPPORT THIS YET!" << std::endl;
+            ff->speak_parseltongue(*write_message);
         }
     }
 
