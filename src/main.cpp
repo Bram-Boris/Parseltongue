@@ -10,6 +10,7 @@
 #include "parseltongue/file_format.hpp"
 #include "parseltongue/mode.hpp"
 #include "parseltongue/plugin.hpp"
+#include "parseltongue/exceptions/file_format_exception.hpp"
 
 namespace su {
     enum class byte_order {
@@ -81,53 +82,62 @@ std::pair<std::string, std::pair<mode, std::optional<std::string>>> process_inpu
 const char* plugin_ext = ".so";
 
 int main(int argc, char** argv) {
-    std::cout << "Your processor has a " << (su::cur_byte_order() == su::byte_order::little_endian ? "little" : "big") << " endian architecture\n";
+    int exit_code = EXIT_SUCCESS;
+    try {
+        std::cout << "Your processor has a " << (su::cur_byte_order() == su::byte_order::little_endian ? "little" : "big") << " endian architecture\n";
 
-    std::vector<std::string> plugin_paths;
-    for(auto& p : std::filesystem::recursive_directory_iterator("./plugins")) {
-        if (p.path().extension() == plugin_ext) {
-            plugin_paths.push_back(p.path().string());
-            std::cout << "Found plugin " << plugin_paths.back() << std::endl;
-        }
-    }
-
-    std::vector<std::unique_ptr<Plugin>> plugins;
-    for (auto& p_path : plugin_paths) {
-        auto plugin = std::make_unique<Plugin>(p_path);
-        plugins.push_back(std::move(plugin));
-    }
-
-    {
-        auto [file_path, mode_with_text] = process_input(argc, argv);
-        auto [mode, write_message] = mode_with_text;
-        // TODO: match extension to possible file types
-        std::filesystem::path file = std::filesystem::path(file_path);
-        std::string file_ext = file.extension();
-        std::cout << file_ext << std::endl;
-
-        std::optional<std::unique_ptr<FileFormat>> ff_opt = std::nullopt;
-
-        // TODO: exception handling
-        for (auto& p : plugins) {
-            for (auto& ext : p->get_file_extensions()) {
-                if (ext == file_ext) {
-                    ff_opt = p->create_file_format(file.string());
-                }
+        std::vector<std::string> plugin_paths;
+        for(auto& p : std::filesystem::recursive_directory_iterator("./plugins")) {
+            if (p.path().extension() == plugin_ext) {
+                plugin_paths.push_back(p.path().string());
+                std::cout << "Found plugin " << plugin_paths.back() << std::endl;
             }
         }
 
-        if(!ff_opt) {
-            std::cerr << "This extension is not implemented!" << std::endl;
-            std::cerr << "You might need a plugin for this. Go ask Crabbe and Goyle." << std::endl;
-            exit(1);
+        std::vector<std::unique_ptr<Plugin>> plugins;
+        for (auto& p_path : plugin_paths) {
+            auto plugin = std::make_unique<Plugin>(p_path);
+            plugins.push_back(std::move(plugin));
         }
-        std::unique_ptr<FileFormat> ff = std::move(*ff_opt);
 
-        ff->print_header();
-        if (mode == mode::READ) {
-            auto messages = ff->read_parseltongue();
-        } else if (mode == mode::WRITE) {
-            ff->speak_parseltongue(*write_message);
+        {
+            auto [file_path, mode_with_text] = process_input(argc, argv);
+            auto [mode, write_message] = mode_with_text;
+            // TODO: match extension to possible file types
+            std::filesystem::path file = std::filesystem::path(file_path);
+            std::string file_ext = file.extension();
+
+            std::optional<std::unique_ptr<FileFormat>> ff_opt = std::nullopt;
+
+            // TODO: exception handling
+            for (auto& p : plugins) {
+                for (auto& ext : p->get_file_extensions()) {
+                    if (ext == file_ext) {
+                        ff_opt = p->create_file_format(file.string());
+                    }
+                }
+            }
+
+            if(!ff_opt) {
+                std::cerr << "This extension is not implemented!" << std::endl;
+                std::cerr << "You might need a plugin for this. Go ask Crabbe and Goyle." << std::endl;
+                exit(1);
+            }
+            std::unique_ptr<FileFormat> ff = std::move(*ff_opt);
+
+            ff->print_header();
+            if (mode == mode::READ) {
+                auto messages = ff->read_parseltongue();
+            } else if (mode == mode::WRITE) {
+                ff->speak_parseltongue(*write_message);
+            }
         }
+    } catch(const FileFormatException& e) {
+        std::cerr << e.what() << std::endl;
+    } catch(const std::exception& ex) {
+        std::cerr << argv[0] << ": " << ex.what() << std::endl;
+        exit_code = EXIT_FAILURE;
+    } catch (...) {
+        std::cerr << "An exception has occured" << std::endl;
     }
 }

@@ -31,7 +31,7 @@ public:
 protected:
     // When not giving the position, the position in the stream will change!
     template<typename F>
-    F read(F& out, std::optional<std::size_t> pos = std::nullopt) {
+    F read_out(F& out, std::optional<std::size_t> pos = std::nullopt) {
         std::size_t previous_pos = byte_stream.tellg();
         if (pos)
             byte_stream.seekg(*pos);
@@ -45,7 +45,7 @@ protected:
     template<typename F>
     F read(std::optional<std::size_t> pos = std::nullopt) {
         F out {};
-        read(out, pos);
+        read_out(out, pos);
         return out;
     }
     template<typename F, int N>

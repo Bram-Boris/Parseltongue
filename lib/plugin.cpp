@@ -7,7 +7,7 @@ Plugin::Plugin(std::string plugin_path) {
 
     char* error = dlerror();
     if (error)
-        throw PluginException("Could not load plugin module " + plugin_path);
+        throw PluginException("Could not load plugin module " + plugin_path + "\n" + error);
 
     create_file_format_fn_ptr = reinterpret_cast<create_file_format_fn>(dlsym(handle, "create_file_format"));
     get_file_extensions_fn_ptr = reinterpret_cast<get_file_extensions_fn>(dlsym(handle, "get_file_extensions"));
@@ -15,7 +15,7 @@ Plugin::Plugin(std::string plugin_path) {
 
     error = dlerror();
     if (error)
-        throw PluginException("Could not load plugin functions " + plugin_path);
+        throw PluginException("Could not load plugin functions " + plugin_path + "\n" + error);
 }
 
 Plugin::~Plugin() {
