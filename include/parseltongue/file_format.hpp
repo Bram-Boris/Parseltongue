@@ -29,6 +29,7 @@ public:
     virtual void speak_parseltongue(std::string) = 0;
     virtual std::vector<std::string> read_parseltongue() = 0;
 protected:
+    // When not giving the position, the position in the stream will change!
     template<typename F>
     F read(F& out, std::optional<std::size_t> pos = std::nullopt) {
         std::size_t previous_pos = byte_stream.tellg();
@@ -76,7 +77,8 @@ protected:
 
         // write
         byte_stream.write(reinterpret_cast<char*>(&f), sizeof(F));
-
+    
+        // Go back to previous position
         if (pos)
             byte_stream.seekg(previous_pos);
     }
