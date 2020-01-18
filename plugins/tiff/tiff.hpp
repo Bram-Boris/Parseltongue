@@ -37,10 +37,9 @@ public:
     }
 
     void speak_parseltongue(std::string message) override;
-    std::vector<std::string> read_parseltongue() override;
+    void read_parseltongue() override;
 
-    void print_header() const override {
-    }
+    void print_header() const override {}
 
 private:
     uint32_t sample_length() const {

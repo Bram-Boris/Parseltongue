@@ -3,7 +3,7 @@
 #include <cmath>
 
 Tiff::Tiff(std::string file_path) : FileFormat{file_path} {
-    std::string endianness_str { read_array<char, 2>(0, true).get() };
+    std::string endianness_str { read_array<char>(2, 0, true).get() };
     if (endianness_str == "II")
         tiff_header.endianness_ = endianness::little;
     else if (endianness_str == "MM")
@@ -122,8 +122,7 @@ void Tiff::speak_parseltongue(std::string message) {
     }
 }
 
-std::vector<std::string> Tiff::read_parseltongue() {
-    std::vector<std::string> messages;
+void Tiff::read_parseltongue() {
     // Maybe move the 100000 to a const and enforce it in the inputs
     std::bitset<100000> buffer;
     std::string message;
@@ -145,7 +144,6 @@ std::vector<std::string> Tiff::read_parseltongue() {
                     message.push_back(c);
                 } else {
                     if (utf8::validate(message) && !message.empty()) {
-                        messages.push_back(message);
                         std::cout << "A message has been found: " << std::endl;
                         std::cout << message << std::endl;
                     }
@@ -158,5 +156,4 @@ std::vector<std::string> Tiff::read_parseltongue() {
             }
         }
     }
-    return messages;
 }

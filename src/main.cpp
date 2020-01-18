@@ -60,6 +60,10 @@ std::pair<std::string, std::pair<mode, std::optional<std::string>>> process_inpu
                     std::cout << "Writing secrets to file: " << optarg << std::endl;
                     m = mode::WRITE;
                     wm = std::string(optarg);
+                    if (wm->size() > 2000) {
+                        std::cerr << "Your message may have a maximum length of 2000" << std::endl;
+                        exit(1);
+                    }
                 }
                 else {
                     std::cerr << "You need to supply a secret when writing" << std::endl;
@@ -73,9 +77,17 @@ std::pair<std::string, std::pair<mode, std::optional<std::string>>> process_inpu
         }
     }
     if (!m || !f) {
-        std::cerr  << "You need to supply a file and a mode" << std::endl;
+        std::cerr << "You need to supply a file and a mode" << std::endl;
         exit(1);
     }
+    if(m == mode::WRITE) {
+        size_t size = std::filesystem::file_size(*f);
+        if (size < (wm->size() * 10)) {
+            std::cerr << "Your message is too long for the file." << std::endl;
+            exit(1);
+        }
+    }
+
     return std::make_pair(*f, std::make_pair(*m, wm));
 }
 
@@ -127,17 +139,19 @@ int main(int argc, char** argv) {
 
             ff->print_header();
             if (mode == mode::READ) {
-                auto messages = ff->read_parseltongue();
+                ff->read_parseltongue();
             } else if (mode == mode::WRITE) {
                 ff->speak_parseltongue(*write_message);
             }
         }
     } catch(const FileFormatException& e) {
         std::cerr << e.what() << std::endl;
-    } catch(const std::exception& ex) {
-        std::cerr << argv[0] << ": " << ex.what() << std::endl;
         exit_code = EXIT_FAILURE;
+    } catch (const std::exception ex) {
+        std::cerr << "An exception has occured " << ex.what() << std::endl;
     } catch (...) {
         std::cerr << "An exception has occured" << std::endl;
+        exit_code = EXIT_FAILURE;
     }
+    return exit_code;
 }

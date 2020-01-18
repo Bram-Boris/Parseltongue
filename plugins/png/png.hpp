@@ -28,10 +28,13 @@ struct PNG_PLTE : PNG_Chunk {
     static const uint32_t type = 80768469;
 };
 
-struct PNG_IDAT : PNG_Chunk {
+struct PNG_IDAT_info {
     uint8_t zlib_flags;
     uint8_t additional_flags;
     uint32_t check_value;
+};
+
+struct PNG_IDAT : PNG_Chunk {
     uint32_t data_offset;
     uint32_t data_length;
     static const uint32_t type = 0x49444154;
@@ -51,7 +54,7 @@ public:
     }
 
     void speak_parseltongue(std::string message) override;
-    std::vector<std::string> read_parseltongue() override;
+    void read_parseltongue() override;
 
     void print_header() const override {
     }
@@ -60,8 +63,11 @@ private:
     std::vector<PNG_IDAT> PNG_idats;
     PNG_IEND PNG_iend;
     PNG_IHDR PNG_ihdr;
+    PNG_IDAT_info PNG_idat_info;
 
     static const uint64_t start_png = 0x89504e470d0a1a0a; 
+
+    static std::vector<unsigned char> inflate2(unsigned char* in, size_t in_length);
 };
 
 #endif // FILE_PNG_HPP
