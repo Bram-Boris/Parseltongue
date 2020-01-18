@@ -1,11 +1,11 @@
 #include "png.hpp"
 #include <cassert>
-#include "parseltongue/exceptions/file_format_exception.hpp"
 #include <zlib.h>
+#include <stdexcept>
 
 PNG::PNG(std::string file_path) : FileFormat {file_path} {
     if (read<uint64_t>(0) != start_png) {
-        throw FileFormatException("This is not a PNG file");
+        throw std::runtime_error("This is not a PNG file");
     }
     byte_stream.seekg(0, std::ios::end);
     auto file_length = byte_stream.tellg();
@@ -28,7 +28,7 @@ PNG::PNG(std::string file_path) : FileFormat {file_path} {
             ihdr.interlace_method = read<uint8_t>(current_chunk_offset + 20);
 
             if (ihdr.compression_type != 0)
-                throw FileFormatException("This PNG uses an undefined compression method");
+                throw std::runtime_error("This PNG uses an undefined compression method");
 
             std::cout << "IHDR width: " << ihdr.width << std::endl;
             std::cout << "IHDR height: " << ihdr.height << std::endl;
@@ -44,12 +44,12 @@ PNG::PNG(std::string file_path) : FileFormat {file_path} {
                 PNG_idat_info.zlib_flags = read<uint8_t>(current_chunk_offset + 8);
                 std::bitset<8> zlib_flags_bs { PNG_idat_info.zlib_flags };
                 if (zlib_flags_bs[0] != 0 || zlib_flags_bs[1] != 0 || zlib_flags_bs[2] != 0 || zlib_flags_bs[3] != 1)
-                    throw FileFormatException("This PNG isn't compressed with deflate compression!");
+                    throw std::runtime_error("This PNG isn't compressed with deflate compression!");
                 print_helper::print_binary(PNG_idat_info.zlib_flags);
                 PNG_idat_info.additional_flags = read<uint8_t>(current_chunk_offset + 9);
                 std::bitset<8> additional_flags_bs { PNG_idat_info.additional_flags };
                 if (additional_flags_bs[5] != 0)
-                    throw FileFormatException("This PNG has a FDICT value of 1, which is not supported by the PNG standard");
+                    throw std::runtime_error("This PNG has a FDICT value of 1, which is not supported by the PNG standard");
                 print_helper::print_binary(PNG_idat_info.additional_flags);
                 idat.data_offset = current_chunk_offset + 10;
                 idat.data_length = data_length - 6;
@@ -89,7 +89,7 @@ std::vector<unsigned char> PNG::inflate2(unsigned char* in, size_t in_length) {
     strm.next_in = Z_NULL;
     ret = inflateInit(&strm);
     if (ret != Z_OK)
-        throw FileFormatException("inflate_init error");
+        throw std::runtime_error("inflate_init error");
 
     /* decompress until deflate stream ends or end of file */
     size_t current_in = 0;
@@ -111,7 +111,7 @@ std::vector<unsigned char> PNG::inflate2(unsigned char* in, size_t in_length) {
             case Z_DATA_ERROR:
             case Z_MEM_ERROR:
                 (void)inflateEnd(&strm);
-                throw FileFormatException("mem error error");
+                throw std::runtime_error("mem error error");
             }
             have = CHUNK - strm.avail_out;
             for (size_t i = 0; i < have; i++) {
@@ -128,7 +128,7 @@ std::vector<unsigned char> PNG::inflate2(unsigned char* in, size_t in_length) {
     /* clean up and return */
     (void)inflateEnd(&strm);
     if (ret != Z_STREAM_END)
-        throw FileFormatException("not at end error!");
+        throw std::runtime_error("not at end error!");
     return out_data;
 }
 

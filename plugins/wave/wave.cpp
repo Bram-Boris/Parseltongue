@@ -1,5 +1,5 @@
 #include "wave.hpp"
-#include "parseltongue/exceptions/file_format_exception.hpp"
+#include <stdexcept>
 
 Wave::Wave(std::string file_path) : FileFormat {file_path} {
     header_riff = read_array<char>(4, 0, true).get();
@@ -10,7 +10,7 @@ Wave::Wave(std::string file_path) : FileFormat {file_path} {
     header_fmt_length = read<uint32_t>(16);
     header_file_encoding_tag = read<uint16_t>(20);
     if (header_fmt_length != 16 || header_file_encoding_tag != 1)
-        throw FileFormatException("This file is not linear PCM, not supported");
+        throw std::runtime_error("This file is not linear PCM, not supported");
     header_channels = read<uint16_t>(22);
     header_sample_rate = read<uint32_t>(24);
     header_byte_rate = read<uint32_t>(28);

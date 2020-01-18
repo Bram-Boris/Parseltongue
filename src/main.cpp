@@ -10,7 +10,6 @@
 #include "parseltongue/file_format.hpp"
 #include "parseltongue/mode.hpp"
 #include "parseltongue/plugin.hpp"
-#include "parseltongue/exceptions/file_format_exception.hpp"
 
 namespace su {
     enum class byte_order {
@@ -94,7 +93,7 @@ std::pair<std::string, std::pair<mode, std::optional<std::string>>> process_inpu
 const char* plugin_ext = ".so";
 
 int main(int argc, char** argv) {
-    int exit_code = EXIT_SUCCESS;
+    int exit_code = 0;
     try {
         std::cout << "Your processor has a " << (su::cur_byte_order() == su::byte_order::little_endian ? "little" : "big") << " endian architecture\n";
 
@@ -112,7 +111,6 @@ int main(int argc, char** argv) {
             plugins.push_back(std::move(plugin));
         }
 
-        {
             auto [file_path, mode_with_text] = process_input(argc, argv);
             auto [mode, write_message] = mode_with_text;
             // TODO: match extension to possible file types
@@ -143,14 +141,15 @@ int main(int argc, char** argv) {
             } else if (mode == mode::WRITE) {
                 ff->speak_parseltongue(*write_message);
             }
-        }
-    } catch(const FileFormatException& e) {
-        std::cerr << e.what() << std::endl;
+    } catch(const std::exception& ex) {
+        std::cerr << "An exception was thrown: " << ex.what() << std::endl;
         exit_code = EXIT_FAILURE;
-    } catch (const std::exception ex) {
-        std::cerr << "An exception has occured " << ex.what() << std::endl;
-    } catch (...) {
-        std::cerr << "An exception has occured" << std::endl;
+    } catch(const std::runtime_error& ex) {
+        std::cerr << "An exception was thrown: " << ex.what() << std::endl;
+        exit_code = EXIT_FAILURE;
+        exit_code = EXIT_FAILURE;
+    } catch(...) {
+        std::cerr << "An unknown error occured." << std::endl;
         exit_code = EXIT_FAILURE;
     }
     return exit_code;

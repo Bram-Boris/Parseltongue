@@ -1,7 +1,7 @@
 #include "aiff.hpp"
 #include <cstring>
 #include "parseltongue/file_format.hpp"
-#include "parseltongue/exceptions/file_format_exception.hpp"
+#include <stdexcept>
 
 Aiff::Aiff(std::string file_path) : FileFormat{file_path} {
     aiff_header.aiff_start = std::string(read_array<char>(4, 0, true).get());
@@ -36,7 +36,7 @@ Aiff::Aiff(std::string file_path) : FileFormat{file_path} {
         pos += chunk_length + 8;
     }
     if (!COMM_found || !SSND_found)
-        throw FileFormatException("AIFF could not be read.");
+        throw std::runtime_error("AIFF could not be read.");
 }
 void Aiff::speak_parseltongue(std::string message) {
     uint32_t sample_offset = 0;

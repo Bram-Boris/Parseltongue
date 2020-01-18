@@ -9,7 +9,6 @@
 #include <exception>
 #include <optional>
 
-#include "parseltongue/exceptions/file_could_not_be_opened.hpp"
 #include "parseltongue/endian.hpp"
 #include "parseltongue/print_helper.hpp"
 
@@ -17,7 +16,8 @@ class FileFormat {
 public:
     FileFormat(std::string file_path) : byte_stream{file_path, std::ios::binary | std::ios::in | std::ios::out} {
         if (!byte_stream.is_open()) {
-            throw FileCouldNotBeOpened(file_path);
+            byte_stream.close();
+            throw std::runtime_error("File could not be found: " + file_path);
         }
     }
     virtual ~FileFormat() {

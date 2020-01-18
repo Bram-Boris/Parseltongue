@@ -1,5 +1,4 @@
 #include "tiff.hpp"
-#include "parseltongue/exceptions/file_format_exception.hpp"
 #include <cmath>
 
 Tiff::Tiff(std::string file_path) : FileFormat{file_path} {
@@ -9,7 +8,7 @@ Tiff::Tiff(std::string file_path) : FileFormat{file_path} {
     else if (endianness_str == "MM")
         tiff_header.endianness_ = endianness::big;
     else
-        throw FileFormatException("Unsupported TIFF byte order");
+        throw std::runtime_error("Unsupported TIFF byte order");
 
     tiff_header.version_number = read<uint16_t>(2);
     std::cout << tiff_header.version_number << std::endl;
@@ -43,7 +42,7 @@ Tiff::Tiff(std::string file_path) : FileFormat{file_path} {
                 tiff_data.bit_per_sample_G = read<uint16_t>(offset + 2);
                 tiff_data.bit_per_sample_B = read<uint16_t>(offset + 4);
                 if (tiff_data.bit_per_sample_R != 8 && tiff_data.bit_per_sample_G != 8 && tiff_data.bit_per_sample_B != 8)
-                    throw FileFormatException("bit_per_sample value not supported, needs to be 8bit RGB");
+                    throw std::runtime_error("bit_per_sample value not supported, needs to be 8bit RGB");
                 required_tags_found.emplace_back(true);
             }
             // Rows per strip
@@ -51,20 +50,20 @@ Tiff::Tiff(std::string file_path) : FileFormat{file_path} {
                 tiff_data.rows_per_strip = offset;
                 std::cout << "Rows per strip: " << tiff_data.rows_per_strip << std::endl;
                 if(tiff_data.rows_per_strip != 1)
-                    throw FileFormatException("rows_per_strip value not supported, must be 1");
+                    throw std::runtime_error("rows_per_strip value not supported, must be 1");
                 required_tags_found.emplace_back(true);
             }
             // SamplesPerPixel
             if (tag == 277) {
                 tiff_data.samples_per_pixel = read<uint16_t>(field_offset + 4);
                 if (offset != 3)
-                    throw FileFormatException("SamplesPerPixel value must be 3 for RGB.");
+                    throw std::runtime_error("SamplesPerPixel value must be 3 for RGB.");
                 required_tags_found.emplace_back(true);
             }
             // StripOffsets
             if (tag == 273) {
                 if (type != 4)
-                    throw FileFormatException("The field type of StripByteCounts must be uint32");
+                    throw std::runtime_error("The field type of StripByteCounts must be uint32");
                 for (int i = 0; i< length; i++) {
                     tiff_data.strip_offsets.push_back(read<uint32_t>(offset + i * 4));
                 }
@@ -73,7 +72,7 @@ Tiff::Tiff(std::string file_path) : FileFormat{file_path} {
             // StripByteCounts
             if (tag == 279) {
                 if (type != 4)
-                    throw FileFormatException("The field type of StripByteCounts must be uint32");
+                    throw std::runtime_error("The field type of StripByteCounts must be uint32");
                 for (int i = 0; i< length; i++) {
                     tiff_data.strip_byte_counts.push_back(read<uint32_t>(offset + i * 4));
                 }
@@ -85,7 +84,7 @@ Tiff::Tiff(std::string file_path) : FileFormat{file_path} {
     }
 
     if (required_tags_found.size() != 6)
-        throw FileFormatException("Not all the required tags have been found.");
+        throw std::runtime_error("Not all the required tags have been found.");
 
     tiff_data.strips_per_image = floor((tiff_data.image_length * (tiff_data.rows_per_strip)) / tiff_data.rows_per_strip);
     std::cout << "Strips: " << tiff_data.strips_per_image << std::endl;
