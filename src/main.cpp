@@ -60,7 +60,7 @@ std::pair<std::string, std::pair<mode, std::optional<std::string>>> process_inpu
                     m = mode::WRITE;
                     wm = std::string(optarg);
                     if (wm->size() > 2000) {
-                        std::cerr << "Your message may have a maximum length of 2000" << std::endl;
+                        std::cerr << "Your message may not be longer than 2000 characters" << std::endl;
                         exit(1);
                     }
                 }
