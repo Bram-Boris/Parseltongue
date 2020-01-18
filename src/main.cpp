@@ -111,42 +111,41 @@ int main(int argc, char** argv) {
             plugins.push_back(std::move(plugin));
         }
 
-            auto [file_path, mode_with_text] = process_input(argc, argv);
-            auto [mode, write_message] = mode_with_text;
-            // TODO: match extension to possible file types
-            std::filesystem::path file = std::filesystem::path(file_path);
-            std::string file_ext = file.extension();
+        auto [file_path, mode_with_text] = process_input(argc, argv);
+        auto [mode, write_message] = mode_with_text;
+        // TODO: match extension to possible file types
+        std::filesystem::path file = std::filesystem::path(file_path);
+        std::string file_ext = file.extension();
 
-            std::optional<std::unique_ptr<FileFormat>> ff_opt = std::nullopt;
+        std::optional<std::unique_ptr<FileFormat>> ff_opt = std::nullopt;
 
-            // TODO: exception handling
-            for (auto& p : plugins) {
-                for (auto& ext : p->get_file_extensions()) {
-                    if (ext == file_ext) {
-                        ff_opt = p->create_file_format(file.string());
-                    }
+        // TODO: exception handling
+        for (auto& p : plugins) {
+            for (auto& ext : p->get_file_extensions()) {
+                if (ext == file_ext) {
+                    ff_opt = p->create_file_format(file.string());
                 }
             }
+        }
 
-            if(!ff_opt) {
-                std::cerr << "This extension is not implemented!" << std::endl;
-                std::cerr << "You might need a plugin for this. Go ask Crabbe and Goyle." << std::endl;
-                exit(1);
-            }
-            std::unique_ptr<FileFormat> ff = std::move(*ff_opt);
+        if(!ff_opt) {
+            std::cerr << "This extension is not implemented!" << std::endl;
+            std::cerr << "You might need a plugin for this. Go ask Crabbe and Goyle." << std::endl;
+            exit(1);
+        }
+        std::unique_ptr<FileFormat> ff = std::move(*ff_opt);
 
-            ff->print_header();
-            if (mode == mode::READ) {
-                ff->read_parseltongue();
-            } else if (mode == mode::WRITE) {
-                ff->speak_parseltongue(*write_message);
-            }
-    } catch(const std::exception& ex) {
-        std::cerr << "An exception was thrown: " << ex.what() << std::endl;
-        exit_code = EXIT_FAILURE;
+        ff->print_header();
+        if (mode == mode::READ) {
+            ff->read_parseltongue();
+        } else if (mode == mode::WRITE) {
+            ff->speak_parseltongue(*write_message);
+        }
     } catch(const std::runtime_error& ex) {
         std::cerr << "An exception was thrown: " << ex.what() << std::endl;
         exit_code = EXIT_FAILURE;
+    } catch(const std::exception& ex) {
+        std::cerr << "An exception was thrown: " << ex.what() << std::endl;
         exit_code = EXIT_FAILURE;
     } catch(...) {
         std::cerr << "An unknown error occured." << std::endl;

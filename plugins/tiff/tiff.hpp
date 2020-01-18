@@ -32,7 +32,7 @@ public:
     Tiff(std::string file_path);
     ~Tiff() override = default;
 
-    virtual enum endianness endianness() const override {
+    virtual enum endianness get_endianness() const override {
         return tiff_header.endianness_;
     }
 

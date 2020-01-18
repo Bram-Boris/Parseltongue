@@ -12,7 +12,7 @@ public:
     Wave(std::string file_path);
     ~Wave() override = default;
 
-    virtual enum endianness endianness() const override {
+    virtual enum endianness get_endianness() const override {
         return endianness::little;
     }
     void speak_parseltongue(std::string message) override;

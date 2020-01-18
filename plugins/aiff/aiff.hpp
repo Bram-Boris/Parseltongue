@@ -43,7 +43,7 @@ public:
     Aiff(std::string file_path);
     ~Aiff() override = default;
 
-    virtual enum endianness endianness() const override {
+    virtual enum endianness get_endianness() const override {
         return endianness::big;
     }
 

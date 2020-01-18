@@ -24,7 +24,7 @@ public:
         byte_stream.close();
     }
 
-    virtual endianness endianness() const = 0;
+    virtual endianness get_endianness() const = 0;
     virtual void print_header() const = 0;
     virtual void speak_parseltongue(std::string) = 0;
     virtual void read_parseltongue() = 0;
@@ -36,7 +36,7 @@ protected:
         if (pos)
             byte_stream.seekg(*pos);
         byte_stream.read(reinterpret_cast<char*>(&out), sizeof(F));
-        if (sizeof(F) > 1 && endianness() == endianness::big)
+        if (sizeof(F) > 1 && get_endianness() == endianness::big)
             convert_endianness(&out);
         if (pos)
             byte_stream.seekg(previous_pos);
@@ -56,7 +56,7 @@ protected:
         byte_stream.read(reinterpret_cast<char*>(out), sizeof(F) * N);
         if (add_null_byte)
             out[n - 1] = '\0';
-        if (sizeof(F) > 1 && endianness() == endianness::big) {
+        if (sizeof(F) > 1 && get_endianness() == endianness::big) {
             for (int i = 0; i < N; i++) {
                 convert_endianness(&out[i]);
             }

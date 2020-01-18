@@ -49,7 +49,7 @@ public:
     PNG(std::string file_path);
     ~PNG() override = default;
 
-    virtual enum endianness endianness() const override {
+    virtual enum endianness get_endianness() const override {
         return endianness::big;
     }
 
